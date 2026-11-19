@@ -7,7 +7,9 @@ It shows why an algorithm lowers the **base** of the exponent while an FPGA only
 Every claim is checked three ways: mathematical derivation → Python experiment →
 Verilog module simulated in Icarus Verilog.
 
-ETH here is the complexity-theory hypothesis, not Ethereum.
+**ETH (Impagliazzo–Paturi, 1999):** there is δ > 0 such that 3-SAT cannot be solved in time O(2^(δn)),
+where n is the number of variables. Better algorithms can lower the base of the exponent
+(2 → 1.839 → 1.334 → 1.307), but never down to 2^(o(n)).
 
 ## Notebooks
 
