@@ -33,26 +33,34 @@ def seconds(ops: float, rate: float) -> float:
     return ops / rate
 
 
-def fmt_time(s: float) -> str:
+_UNITS = {
+    "ru": ("нс", "мкс", "мс", "с", "мин", "ч", "дн", "лет", "× возраст Вселенной"),
+    "en": ("ns", "µs", "ms", "s", "min", "h", "days", "years", "× age of the Universe"),
+}
+
+
+def fmt_time(s: float, lang: str = "ru") -> str:
+    """Человекочитаемое время. lang='ru' | 'en'."""
+    ns, us, ms, sec, mi, h, d, y, univ = _UNITS[lang]
     year = 3.156e7
     universe = 13.8e9 * year
     if s < 1e-6:
-        return f"{s*1e9:.1f} нс"
+        return f"{s*1e9:.1f} {ns}"
     if s < 1e-3:
-        return f"{s*1e6:.1f} мкс"
+        return f"{s*1e6:.1f} {us}"
     if s < 1:
-        return f"{s*1e3:.1f} мс"
+        return f"{s*1e3:.1f} {ms}"
     if s < 60:
-        return f"{s:.1f} с"
+        return f"{s:.1f} {sec}"
     if s < 3600:
-        return f"{s/60:.1f} мин"
+        return f"{s/60:.1f} {mi}"
     if s < 86400:
-        return f"{s/3600:.1f} ч"
+        return f"{s/3600:.1f} {h}"
     if s < year:
-        return f"{s/86400:.1f} дн"
+        return f"{s/86400:.1f} {d}"
     if s < universe:
-        return f"{s/year:.3g} лет"
-    return f"{s/universe:.3g} × возраст Вселенной"
+        return f"{s/year:.3g} {y}"
+    return f"{s/universe:.3g} {univ}"
 
 
 # --------------------------------------------------------------------------- модель ресурсов

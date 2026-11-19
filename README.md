@@ -1,63 +1,76 @@
 # Eth-alg-learn
 
-Учебный проект о **гипотезе экспоненциального времени (ETH)** и экспоненциальных алгоритмах.
-Он показывает, почему алгоритм уменьшает **основание** экспоненты, а FPGA меняет только **константу**.
-Каждое утверждение проверяется тремя способами: математический вывод → эксперимент на Python →
-Verilog-модуль, запущенный в Icarus Verilog.
+*Русская версия: [README.ru.md](README.ru.md)*
 
-Главный файл — [`notebooks/eth_alg_learn.ipynb`](notebooks/eth_alg_learn.ipynb). Он уже выполнен,
-графики и выводы видны прямо на GitHub.
+A learning project about the **Exponential Time Hypothesis (ETH)** and exponential-time algorithms.
+It shows why an algorithm lowers the **base** of the exponent while an FPGA only changes the **constant**.
+Every claim is checked three ways: mathematical derivation → Python experiment →
+Verilog module simulated in Icarus Verilog.
 
-## Содержание ноутбука
+ETH here is the complexity-theory hypothesis, not Ethereum.
 
-| № | Раздел | Ключевой результат |
+## Notebooks
+
+| Language | File |
+|---|---|
+| English | [`notebooks/eth_alg_learn_en.ipynb`](notebooks/eth_alg_learn_en.ipynb) |
+| Русский | [`notebooks/eth_alg_learn.ipynb`](notebooks/eth_alg_learn.ipynb) |
+
+Both are already executed, so plots and outputs render directly on GitHub.
+
+## Contents
+
+| # | Section | Key result |
 |---|---|---|
-| 1 | Экспонента как стена | ускорение ×S даёт только +log_c S к n; алгоритм умножает n на ln c / ln c' |
-| 2 | 3-SAT, ETH, SETH, лемма о разрежении | фазовый переход у m/n ≈ 4.27 (эксперимент) |
-| 3 | Ветвление и рекурренты | 1 = Σ c^(−dᵢ): 1.839ⁿ, 1.618ⁿ, 1.466ⁿ; сверка с корнями многочлена |
-| 4 | Перебор → бэктрекинг → ветвление по клаузе → DPLL | измеренные основания: 2.05 → 1.39 → 1.11 → 1.08 |
-| 5 | Алгоритм Шёнинга | вывод (4/3)ⁿ через случайное блуждание; эксперимент |
-| 6 | Subset Sum | наивно O(n·2ⁿ), код Грея O(2ⁿ), meet-in-the-middle O(2^(n/2)) |
-| 7 | FPGA: `sat_brute.v` | Icarus: такты = 2^(n−LOGP), решение совпадает с Python |
-| 8 | FPGA: `ss_engine.v` | мультиплексор против LUTRAM: ~540 → ~140 LUT на движок |
-| 9 | FPGA правильно: `bcp_unit.v` | трасса DPLL → BCP за такт, 0 расхождений |
-| 10 | Сводная картина и граница ETH | «сначала основание, потом константа» |
-| 11 | Упражнения | |
+| 1 | The exponential wall | an S-fold speedup adds only log_c S to n; a better algorithm multiplies n by ln c / ln c' |
+| 2 | 3-SAT, ETH, SETH, Sparsification Lemma | phase transition at m/n ≈ 4.27 (experiment) |
+| 3 | Branching and recurrences | 1 = Σ c^(−dᵢ): 1.839ⁿ, 1.618ⁿ, 1.466ⁿ; checked against polynomial roots |
+| 4 | Brute force → backtracking → clause branching → DPLL | measured bases on random formulas: 2.05 → 1.39 → 1.11 → 1.08 |
+| 5 | Schöning's algorithm | (4/3)ⁿ derived from a random walk; experiment |
+| 6 | Subset Sum | naive O(n·2ⁿ), Gray code O(2ⁿ), meet-in-the-middle O(2^(n/2)) |
+| 7 | FPGA: `sat_brute.v` | Icarus: cycles = 2^(n−LOGP), solution matches Python |
+| 8 | FPGA: `ss_engine.v` | multiplexer vs LUTRAM: ~540 → ~140 LUT per engine (model) |
+| 9 | FPGA done right: `bcp_unit.v` | DPLL trace → single-cycle BCP, 0 mismatches |
+| 10 | The big picture and the ETH limit | "first the base, then the constant" |
+| 11 | Exercises | |
 
-## Структура
+## Layout
 
 ```
-ethlearn/           Python-библиотека
-  sat.py            генераторы 3-SAT; перебор, бэктрекинг, ветвление по клаузе, DPLL (с трассой), Шёнинг
-  recurrence.py     branching number: бисекция и корни характеристического многочлена
-  subset_sum.py     наивный перебор, код Грея, meet-in-the-middle, ДП
-  fpga.py           модель времени и ресурсов XC7Z010, генерация .mem, запуск Icarus
+ethlearn/               Python library
+  sat.py                3-SAT generators; brute force, backtracking, clause branching, DPLL (with trace), Schöning
+  recurrence.py         branching number: bisection and characteristic-polynomial roots
+  subset_sum.py         naive, Gray code, meet-in-the-middle, DP
+  fpga.py               XC7Z010 time/resource model, .mem generation, Icarus runner
 rtl/
-  sat_brute.v       P = 2^LOGP ядер, одно назначение 3-SAT за такт на ядро
-  ss_engine.v       движок Subset Sum: подмножество за такт, код Грея, таблица ±a в LUTRAM
-  ss_array.v        2^K движков делят пространство масок
-  bcp_unit.v        Boolean Constraint Propagation всех клауз за один такт
-tb/                 тестбенчи Icarus (tb_ss.v, tb_sat.v, tb_bcp.v)
+  sat_brute.v           P = 2^LOGP cores, one 3-SAT assignment per clock per core
+  ss_engine.v           Subset Sum engine: one subset per clock, Gray code, ±a table in LUTRAM
+  ss_array.v            2^K engines split the mask space
+  bcp_unit.v            Boolean Constraint Propagation over all clauses in one clock
+tb/                     Icarus testbenches (tb_ss.v, tb_sat.v, tb_bcp.v)
 tools/
-  build_notebook.py собирает и выполняет ноутбук
-  check_rtl.py      регрессия RTL против Python-эталонов
-figures/            графики из ноутбука
+  build_notebook.py     builds and runs the Russian notebook
+  build_notebook_en.py  builds and runs the English notebook
+  check_rtl.py          RTL regression against Python references
+figures/                plots (Russian), figures/en/ — English
 ```
 
-## Запуск
+## Running
 
 ```bash
 pip install -r requirements.txt
-sudo apt install iverilog          # для разделов 7–9
-python3 tools/check_rtl.py         # ALL PASS
-jupyter lab notebooks/eth_alg_learn.ipynb
-# или пересобрать и выполнить целиком (~2.5 мин):
+sudo apt install iverilog                     # sections 7–9
+python3 tools/check_rtl.py                    # ALL PASS
+jupyter lab notebooks/eth_alg_learn_en.ipynb
+# or rebuild and execute from scratch (~2.5 min each):
+python3 tools/build_notebook_en.py --execute
 python3 tools/build_notebook.py --execute
 ```
 
-## Железо
+## Hardware
 
-Целевая плата — 7Z-Lite (XC7Z010, 17 600 LUT6, кварц 50 МГц). RTL проверен только в симуляции (Icarus Verilog).
-Оценки LUT в ноутбуке модельные, точные цифры даст синтез в Vivado.
-Расширенная версия перебора 3-SAT для платы, с UART и скриптами Vivado, лежит в
+Target board: 7Z-Lite (XC7Z010, 17,600 LUT6, 50 MHz crystal). The RTL is verified in simulation only (Icarus Verilog).
+LUT figures in the notebooks come from a model; Vivado synthesis gives the exact numbers.
+Comments in the RTL and Python sources are in Russian.
+A board-ready version of the 3-SAT brute force with UART and Vivado scripts lives in
 [`fpga-course/sat-bruteforce`](https://github.com/arsatyants/fpga-course/tree/master/sat-bruteforce).
