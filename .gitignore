@@ -1,0 +1,4 @@
+__pycache__/
+*.vvp
+.ipynb_checkpoints/
+*.mem
