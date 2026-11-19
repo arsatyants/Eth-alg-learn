@@ -28,6 +28,7 @@ Both are already executed, so plots and outputs render directly on GitHub.
 | 2 | 3-SAT, ETH, SETH, Sparsification Lemma | phase transition at m/n ≈ 4.27 (experiment) |
 | 3 | Branching and recurrences | 1 = Σ c^(−dᵢ): 1.839ⁿ, 1.618ⁿ, 1.466ⁿ; checked against polynomial roots |
 | 4 | Brute force → backtracking → clause branching → DPLL | measured bases on random formulas: 2.05 → 1.39 → 1.11 → 1.08 |
+| 4.1 | Pigeonhole principle (PHPₙ) | DPLL nodes ×4, ×8, ×10, ×12 per step; CDCL exponential too (Haken, 2^Ω(n) for resolution) |
 | 5 | Schöning's algorithm | (4/3)ⁿ derived from a random walk; experiment |
 | 6 | Subset Sum | naive O(n·2ⁿ), Gray code O(2ⁿ), meet-in-the-middle O(2^(n/2)) |
 | 7 | FPGA: `sat_brute.v` | Icarus: cycles = 2^(n−LOGP), solution matches Python |
@@ -40,7 +41,7 @@ Both are already executed, so plots and outputs render directly on GitHub.
 
 ```
 ethlearn/               Python library
-  sat.py                3-SAT generators; brute force, backtracking, clause branching, DPLL (with trace), Schöning
+  sat.py                3-SAT and pigeonhole (PHPₙ) generators; brute force, backtracking, clause branching, DPLL (with trace), Schöning
   recurrence.py         branching number: bisection and characteristic-polynomial roots
   subset_sum.py         naive, Gray code, meet-in-the-middle, DP
   fpga.py               XC7Z010 time/resource model, .mem generation, Icarus runner

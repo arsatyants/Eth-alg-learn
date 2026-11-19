@@ -39,6 +39,7 @@ Icarus Verilog**.
 | 2 | 3-SAT, ETH, SETH, the Sparsification Lemma, the phase transition |
 | 3 | Branching and recurrences: where 1.839ⁿ and 1.466ⁿ come from |
 | 4 | Brute force → backtracking → clause branching → DPLL: measuring the base |
+| 4.1 | Pigeonhole principle: formulas on which DPLL and CDCL are exponential (Haken) |
 | 5 | Schöning's algorithm: deriving (4/3)ⁿ and testing it |
 | 6 | Subset Sum: brute force, Gray code, meet-in-the-middle (2ⁿ → 1.414ⁿ) |
 | 7 | FPGA: parallel 3-SAT brute force (`sat_brute.v`) |
@@ -316,6 +317,82 @@ md(r"""
   On specially constructed formulas (e.g. the pigeonhole principle) DPLL is exponential with a noticeable base.
 
 The key point: none of these improvements comes from faster hardware. It is **less work**, not the same work done faster.
+""")
+
+md(r"""
+### 4.1 Hard formulas: the pigeonhole principle (PHP)
+
+On random formulas DPLL showed a base of about 1.08. That does not make DPLL "almost polynomial":
+there are formulas on which it is provably exponential. The classic example is the **pigeonhole principle**.
+
+$\mathrm{PHP}_n$: $n+1$ pigeons, $n$ holes. Variable $p_{ij}$ = "pigeon $i$ is in hole $j$", $N=n(n+1)$ in total.
+- every pigeon sits somewhere: $(p_{i1}\lor\dots\lor p_{in})$ — $n+1$ clauses of width $n$;
+- at most one pigeon per hole: $(\neg p_{ij}\lor\neg p_{kj})$ for $i<k$ — $n\binom{n+1}{2}$ clauses.
+
+The formula is always unsatisfiable, which is obvious to a human: there are more pigeons than holes.
+
+**Haken's theorem (1985).** Every **resolution** refutation of $\mathrm{PHP}_n$ contains $2^{\Omega(n)}$ clauses.
+
+Why this matters for DPLL and CDCL. A DPLL tree on an unsatisfiable formula is a tree-like resolution refutation:
+each leaf is a violated clause, each internal node is the resolvent on the branching variable. CDCL with clause
+learning produces a general (DAG) resolution refutation. So Haken's bound automatically lower-bounds the running
+time of **any** DPLL/CDCL solver, however cleverly it picks variables.
+
+Note that the bound is exponential in $n$ while there are $N=\Theta(n^2)$ variables: it is $2^{\Omega(\sqrt N)}$, not $2^{\Omega(N)}$.
+And it is about a **proof system**, not about the problem: in cutting planes, which can count, $\mathrm{PHP}_n$ has
+polynomial-size refutations. ETH speaks about all algorithms at once; Haken's theorem covers one class of algorithms,
+but it is proved unconditionally.
+""")
+
+code(r"""
+rows = []
+for n in range(2, 8):
+    cnf, N = sat.pigeonhole(n)
+    t0 = time.time(); x, st = sat.dpll(cnf, N); t_dp = time.time() - t0
+    assert x is None
+    t0 = time.time(); r = pycosat.solve([list(c) for c in cnf]); t_cd = time.time() - t0
+    assert r == 'UNSAT'
+    rnd = np.median([sat.dpll(sat.random_3sat_ratio(N, 4.27, seed=5000 + 13 * N + s), N)[1]['nodes']
+                     for s in range(5)])
+    rows.append((n, N, len(cnf), st['nodes'], t_dp, t_cd, rnd))
+for n in (8, 9):
+    cnf, N = sat.pigeonhole(n)
+    t0 = time.time(); pycosat.solve([list(c) for c in cnf]); rows.append((n, N, len(cnf), None, None, time.time() - t0, None))
+
+print(f"{'n':>2} {'N':>4} {'m':>4} | {'DPLL nodes':>11} {'growth':>6} {'s':>7} | {'CDCL, s':>8} | {'DPLL on random 3-SAT, same N':>28}")
+prev = None
+for n, N, m, nd, tdp, tcd, rnd in rows:
+    gr = f"×{nd/prev:.1f}" if nd and prev else ''
+    print(f"{n:>2} {N:>4} {m:>4} | {nd if nd else '—':>11} {gr:>6} {(f'{tdp:.2f}' if tdp is not None else '—'):>7} | "
+          f"{tcd:8.3f} | {rnd if rnd is not None else '—':>28}")
+    prev = nd
+""")
+
+code(r"""
+d = [r for r in rows if r[3]]
+fig, (a1, a2) = plt.subplots(1, 2, figsize=(11, 4))
+a1.semilogy([r[1] for r in d], [r[3] for r in d], 'o-', label='PHPₙ, DPLL')
+a1.semilogy([r[1] for r in d], [r[6] for r in d], 's-', label='random 3-SAT, DPLL')
+a1.set_xlabel('number of variables N'); a1.set_ylabel('tree nodes'); a1.legend()
+a1.set_title('Same N, very different hardness')
+a2.semilogy([r[0] for r in rows], [r[5] for r in rows], 'o-', color='C3')
+a2.set_xlabel('n (holes)'); a2.set_ylabel('CDCL time (pycosat), s')
+a2.set_title('CDCL on PHPₙ is exponential too')
+fig.tight_layout(); fig.savefig(f'{FIG}/04b_php.png', dpi=110); plt.show()
+""")
+
+md(r"""
+**What we see.**
+- DPLL node count on $\mathrm{PHP}_n$ grows by a factor that itself increases with $n$ (×4, ×8, ×10, ×12…).
+  That is faster than any $c^n$ in $n$; in terms of the number of variables $N$ it is roughly $2^{\Theta(\sqrt N\log N)}$.
+- A random 3-SAT formula with the same number of variables takes tens to hundreds of nodes: at $N=56$ the gap is over 100× and growing fast.
+- An industrial CDCL solver (pycosat, i.e. PicoSAT) also grows exponentially: a fraction of a second at $n=8$,
+  seconds at $n=9$, about 100 s at $n=10$ (measured separately, not run in the notebook). This is a direct
+  consequence of Haken's theorem.
+- An FPGA with single-clock BCP speeds up every node but does not reduce the number of nodes: again a constant.
+
+**Moral:** a base measured on random data guarantees nothing. Only lower bounds speak about the worst case
+(ETH conditionally for all algorithms, Haken unconditionally for resolution).
 """)
 
 # =============================================================================== 5
@@ -747,8 +824,9 @@ md(r"""
    Compute $c$ with `rc.branching_number` and derive it by hand from the characteristic polynomial $c^4-c^3-1=0$.
 2. **k-SAT.** Plot $c(k)$ for clause branching $(1,\dots,k)$ and for Schöning $2(1-1/k)$ for $k=3..10$.
    How fast do both tend to 2? Relate this to SETH.
-3. **Hard formulas for DPLL.** Generate pigeonhole formulas (PHPₙ: $n+1$ pigeons, $n$ holes)
-   and measure the DPLL base. Compare with random formulas.
+3. **Symmetry in PHP.** Holes are interchangeable, so without loss of generality pigeon 0 sits in hole 0 and
+   pigeon 1 in hole 0 or 1. Add these clauses to `sat.pigeonhole(n)` and measure how the DPLL node count changes.
+   Why does this not contradict Haken's theorem?
 4. **FPGA.** In `ss_engine.v`, move `idx`, `dir` and `delta` into a pipeline register (they depend only on `cnt`)
    and check in Icarus that the answers do not change. How much shorter is the logic path per clock?
 5. **MitM on Zynq.** Estimate at which $n$ a table of $2^{n/2}$ sums of 6 bytes each stops fitting into 2.1 Mbit

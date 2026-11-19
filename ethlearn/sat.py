@@ -45,6 +45,25 @@ def planted_3sat(n: int, m: int, seed: Optional[int] = None) -> Tuple[CNF, List[
     return cnf, x
 
 
+def pigeonhole(n: int) -> Tuple[CNF, int]:
+    """Принцип Дирихле PHP_n: n+1 голубей, n ящиков — формула всегда невыполнима.
+
+    Переменная p(i,j) = «голубь i в ящике j», номер i*n + j + 1, всего N = n(n+1).
+      - каждый голубь где-то сидит:      (p(i,0) ∨ ... ∨ p(i,n-1))   — n+1 клауз ширины n
+      - в ящике не больше одного голубя: (¬p(i,j) ∨ ¬p(k,j)), i<k     — n·C(n+1,2) клауз
+    Хакен (1985): любое резолюционное опровержение PHP_n имеет размер 2^Ω(n).
+    DPLL и CDCL строят именно резолюционные доказательства, поэтому экспоненциальны.
+    """
+    n = int(n)
+    v = lambda i, j: i * n + j + 1
+    cnf: CNF = [tuple(v(i, j) for j in range(n)) for i in range(n + 1)]
+    for j in range(n):
+        for i in range(n + 1):
+            for k in range(i + 1, n + 1):
+                cnf.append((-v(i, j), -v(k, j)))
+    return cnf, n * (n + 1)
+
+
 # --------------------------------------------------------------------------- проверка
 def lit_value(lit: int, x: Sequence[int]) -> int:
     v = x[abs(lit) - 1]
